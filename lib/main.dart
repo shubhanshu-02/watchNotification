@@ -1,10 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+
+void initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+}
+
+void showNotification(String title, String body) async {
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'channel_id', 
+    'channel_name',
+    channelDescription: 'Channel for displaying notifications',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+
+  const NotificationDetails notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    0,
+    title,
+    body,
+    notificationDetails,
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +57,7 @@ class MyApp extends StatelessWidget {
                     child: const Text('playAlarm'),
                     onPressed: () {
                       FlutterRingtonePlayer().playAlarm();
+                      showNotification('Alarm', 'The alarm is playing');
                     },
                   ),
                 ),
@@ -41,6 +76,7 @@ class MyApp extends StatelessWidget {
                     child: const Text('playNotification'),
                     onPressed: () {
                       FlutterRingtonePlayer().playNotification();
+                      showNotification('Notification', 'The notification sound is playing');
                     },
                   ),
                 ),
@@ -50,6 +86,8 @@ class MyApp extends StatelessWidget {
                     child: const Text('playRingtone'),
                     onPressed: () {
                       FlutterRingtonePlayer().playRingtone();
+                      showNotification('Ringtone', 'The ringtone is playing');
+
                     },
                   ),
                 ),
