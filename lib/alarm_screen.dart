@@ -31,7 +31,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
   @override
   void initState() {
     super.initState();
-    alarmTime = const TimeOfDay(hour: 19, minute: 01);
+    alarmTime = const TimeOfDay(hour: 20, minute: 36);
     alarmDateTime = DateTime(
       DateTime.now().year,
       DateTime.now().month,
@@ -64,6 +64,10 @@ class _AlarmScreenState extends State<AlarmScreen> {
 
   void playAlarmSound() {
     FlutterRingtonePlayer().playAlarm();
+  }
+
+  void stopAlarmSound() {
+    FlutterRingtonePlayer().stop();
   }
 
   void showNotification() async {
@@ -110,7 +114,13 @@ class _AlarmScreenState extends State<AlarmScreen> {
                 Text(
                   '$timeLeftString',
                   style: const TextStyle(color: Colors.white, fontSize: 15),
-                ),
+                ),            
+                ElevatedButton(
+              onPressed: () {
+                stopAlarmSound();
+                Navigator.pop(context); 
+              }, child: const Text("dismiss"),
+                )
               ],
             ),
           ),

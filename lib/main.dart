@@ -4,7 +4,7 @@ import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:wear_plus/wear_plus.dart';
 
-void main() => runApp(App());
+void main() => runApp(const App());
 
 
 class App extends StatelessWidget {
@@ -22,7 +22,6 @@ class App extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             colorScheme: mode == WearMode.active
                 ? const ColorScheme.dark(
-                    //
                     primary: Color(0xFF00B5FF),
                   )
                 : const ColorScheme.dark(
