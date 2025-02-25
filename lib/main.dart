@@ -1,8 +1,41 @@
+import 'package:audio_check/alarm_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:wear_plus/wear_plus.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(const App());
+
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AmbientMode(
+      child: const AlarmScreen(),
+      builder: (context, mode, child) {
+        return MaterialApp(
+          home: child,
+          theme: ThemeData(
+            useMaterial3: true,
+            visualDensity: VisualDensity.compact,
+            colorScheme: mode == WearMode.active
+                ? const ColorScheme.dark(
+                    primary: Color(0xFF00B5FF),
+                  )
+                : const ColorScheme.dark(
+                    primary: Colors.white24,
+                    onSurface: Colors.white10,
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+
 
 class MyApp extends StatelessWidget {
   MyApp({super.key});

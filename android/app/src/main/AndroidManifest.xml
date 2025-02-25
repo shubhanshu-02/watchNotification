@@ -3,6 +3,7 @@
     <uses-feature android:name="android.hardware.type.watch" />
 <uses-permission android:name="android.permission.VIBRATE" />
 <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+<uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application
         android:label="audio_check"
