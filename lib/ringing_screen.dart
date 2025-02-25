@@ -15,6 +15,8 @@ class _RingingScreenState extends State<RingingScreen> {
   late Stream<StepCount> _stepCountStream;
   late Stream<PedestrianStatus> _pedestrianStatusStream;
   String _status = '?', _steps = '?';
+  int _currentSteps = 0;
+  final int _maxSteps = 1000;
 
   @override
   void initState() {
@@ -24,9 +26,16 @@ class _RingingScreenState extends State<RingingScreen> {
 
   void onStepCount(StepCount event) {
     print(event);
+    _currentSteps = event.steps;
     setState(() {
       _steps = event.steps.toString();
+    print(_steps);
     });
+
+    if (_currentSteps >= _maxSteps) {
+      stopAlarmSound();
+      Navigator.pop(context);
+    }
   }
 
   void onPedestrianStatusChanged(PedestrianStatus event) {
@@ -98,23 +107,17 @@ class _RingingScreenState extends State<RingingScreen> {
                           : Icons.error,
                   size: 30,
                 ),
-            const SizedBox(height: 15),
-                Text(_steps),
+                const SizedBox(height: 15),
+                Text(
+                  "$_steps / ${_maxSteps.toString()}",
+                  style: const TextStyle(color: Colors.white, fontSize: 24),
+                )
               ],
             ),
             const SizedBox(height: 15),
             const Text(
               'ALARM RINGING!',
               style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              onPressed: () {
-                stopAlarmSound();
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Dismiss', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
