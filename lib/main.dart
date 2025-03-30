@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audio_check/alarm_screen.dart';
 import 'package:audio_check/ringing_screen.dart';
 
-// Unique name for the port
 const String isolateName = 'isolate';
 // Background port for communication
 ReceivePort port = ReceivePort();
@@ -17,10 +16,10 @@ ReceivePort port = ReceivePort();
 // Entry point function that will be invoked by the alarm manager
 @pragma('vm:entry-point')
 void alarmCallback() async {
-  // Get the instance of SendPort
+  // instance of SendPort
   final SendPort? sendPort = IsolateNameServer.lookupPortByName(isolateName);
   
-  // Play alarm sound directly
+  // Play alarm sound
   FlutterRingtonePlayer().playAlarm(looping: true);
   
   // Send notification through isolate
@@ -84,7 +83,7 @@ void navigateToRingingScreen() {
   );
 }
 
-// Show a full-screen intent notification that can open the app even when locked
+// Show a full-screen intent notification that can open the app 
 Future<void> showFullScreenNotification() async {
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'alarm_channel_id',
@@ -97,7 +96,7 @@ Future<void> showFullScreenNotification() async {
     visibility: NotificationVisibility.public,
     autoCancel: false,
     ongoing: true,
-    sound: null, // We handle sound separately with FlutterRingtonePlayer
+    sound: null, 
   );
 
   const NotificationDetails notificationDetails = NotificationDetails(
@@ -173,7 +172,7 @@ class App extends StatelessWidget {
           : const AlarmScreen(),
       ),
       builder: (context, mode, child) {
-        // Apply ambient mode theme if needed
+        // Apply ambient mode theme 
         return child!;
       },
     );

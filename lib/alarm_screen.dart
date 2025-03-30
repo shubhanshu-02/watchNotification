@@ -1,20 +1,12 @@
+import 'dart:async';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:audio_check/ringing_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:intl/intl.dart';
-
-final FlutterLocalNotificationsPlugin flnp = FlutterLocalNotificationsPlugin();
-
-void initNotifications() async {
-  const AndroidInitializationSettings init =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initSettings = InitializationSettings(
-    android: init,
-  );
-
-  await flnp.initialize(initSettings);
-}
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AlarmScreen extends StatefulWidget {
   const AlarmScreen({super.key});
@@ -24,105 +16,167 @@ class AlarmScreen extends StatefulWidget {
 }
 
 class _AlarmScreenState extends State<AlarmScreen> {
-  TimeOfDay? alarmTime;
+  final TimeOfDay alarmTime = const TimeOfDay(hour: 00, minute: 17); //manually set currently
   late DateTime alarmDateTime;
-  late Duration timeLeft;
+  late Duration timeLeft = const Duration();
+  Timer? _timer;
+  final int alarmId = 0;
+  bool alarmActive = false;
 
   @override
   void initState() {
     super.initState();
-    alarmTime = const TimeOfDay(hour: 20, minute: 36);
-    alarmDateTime = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-      alarmTime!.hour,
-      alarmTime!.minute,
-    );
 
-    timeLeft = alarmDateTime.difference(DateTime.now());
+    // Configure the alarm time
+    _configureAlarmTime();
 
-    Future.delayed(const Duration(seconds: 1), updateTimeLeft);
+    // Start a timer for UI updates
+    _timer =
+        Timer.periodic(const Duration(seconds: 1), (_) => updateTimeLeft());
+
+    // Schedule the alarm immediately
+    _scheduleAlarm();
+
+    // Check if an alarm was triggered while app was closed
+    _checkAlarmTriggered();
   }
 
-  void updateTimeLeft() {
-    setState(() {
-      timeLeft = alarmDateTime.difference(DateTime.now());
-    });
+  Future<void> _checkAlarmTriggered() async {
+    final prefs = await SharedPreferences.getInstance();
+    final triggered = prefs.getBool('alarmTriggered') ?? false;
 
-    if (timeLeft.isNegative) {
-      playAlarmSound();
-      showNotification();
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => RingingScreen()),
-      );
-    } else {
-      Future.delayed(const Duration(seconds: 1), updateTimeLeft);
+    if (triggered) {
+      // Clear the flag
+      await prefs.setBool('alarmTriggered', false);
+
+      // Navigate to ringing screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RingingScreen()),
+        );
+      }
     }
   }
 
-  void playAlarmSound() {
-    FlutterRingtonePlayer().playAlarm();
+  void _configureAlarmTime() {
+    final now = DateTime.now();
+    alarmDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      alarmTime.hour,
+      alarmTime.minute,
+    );
+
+    // If alarm time has already passed today, set it for tomorrow
+    if (alarmDateTime.isBefore(now)) {
+      alarmDateTime = alarmDateTime.add(const Duration(days: 1));
+    }
+
+    timeLeft = alarmDateTime.difference(now);
   }
 
-  void stopAlarmSound() {
-    FlutterRingtonePlayer().stop();
+  void updateTimeLeft() {
+    if (!mounted) return;
+
+    final now = DateTime.now();
+    final newTimeLeft = alarmDateTime.difference(now);
+
+    setState(() {
+      timeLeft = newTimeLeft;
+    });
+
+    // If time is up and we're still on this screen, go to the ringing screen
+    if (timeLeft.isNegative && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const RingingScreen()),
+      ).then((_) {
+        // Reschedule the alarm for the next day when returning
+        _configureAlarmTime();
+        _scheduleAlarm();
+      });
+    }
   }
 
-  void showNotification() async {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-      'alarm_channel_id',
-      'Alarm Channel',
-      channelDescription: 'Channel for alarm notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
+  Future<void> _scheduleAlarm() async {
+    // Cancel any existing alarm first
+    await AndroidAlarmManager.cancel(alarmId);
+
+    // Schedule the new alarm
+    final success = await AndroidAlarmManager.oneShotAt(
+      alarmDateTime,
+      alarmId,
+      alarmCallback,
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+      allowWhileIdle: true,
+      alarmClock: true,
     );
 
-    await flnp.show(
-      0,
-      'Alarm',
-      'Time\'s up! Your alarm is ringing.',
-      notificationDetails,
-    );
+    setState(() {
+      alarmActive = success;
+    });
+  }
+
+  @pragma('vm:entry-point')
+  static void alarmCallback() async {
+    // Play the alarm sound
+    FlutterRingtonePlayer().playAlarm(looping: true);
+
+    // Save alarm triggered state
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('alarmTriggered', true);
+
+    // Send message to main isolate
+    final SendPort? sendPort = IsolateNameServer.lookupPortByName('isolate');
+    sendPort?.send('ALARM_TRIGGERED');
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     String timeLeftString = timeLeft.isNegative
-        ? "Time's up! Alarm ringing!"
-        : 'Time Left: ${timeLeft.inHours} hours ${timeLeft.inMinutes % 60} minutes ${timeLeft.inSeconds % 60} seconds';
+        ? "Time's up!"
+        : 'Time Left: ${timeLeft.inHours}h ${timeLeft.inMinutes % 60}m ${timeLeft.inSeconds % 60}s';
 
-    return MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  'Alarm set for ${DateFormat('hh:mm a').format(alarmDateTime)}',
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '$timeLeftString',
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                ),            
-                ElevatedButton(
-              onPressed: () {
-                stopAlarmSound();
-                Navigator.pop(context); 
-              }, child: const Text("dismiss"),
-                )
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(6.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'Alarm set for ${DateFormat('hh:mm a').format(alarmDateTime)}',
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                timeLeftString,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  FlutterRingtonePlayer().stop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const RingingScreen()),
+                  );
+                },
+                child: const Text("Test Alarm"),
+              )
+            ],
           ),
         ),
       ),
